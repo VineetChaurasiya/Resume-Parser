@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATS Resume Formatter</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <header>
+    <h1>ATS Resume Formatter</h1>
+    <p class="tagline">Tailor your resume to a job description. Keep your facts; sharpen the phrasing.</p>
+  </header>
+
+  <main>
+    <section class="inputs">
+      <div class="card">
+        <div class="card-header">
+          <h2>Your Resume</h2>
+          <label class="file-picker">
+            Upload PDF/DOCX/TXT
+            <input type="file" id="resume-file" accept=".pdf,.docx,.txt" />
+          </label>
+        </div>
+        <textarea id="resume-text" placeholder="Paste your resume here, or upload a file above..." rows="20"></textarea>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Job Description</h2>
+          <label class="file-picker">
+            Upload PDF/DOCX/TXT
+            <input type="file" id="jd-file" accept=".pdf,.docx,.txt" />
+          </label>
+        </div>
+        <textarea id="jd-text" placeholder="Paste the job description here..." rows="20"></textarea>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button id="submit-btn" type="button">Format Resume</button>
+      <span id="status" class="status"></span>
+    </div>
+
+    <section id="results" class="results hidden">
+      <div class="card">
+        <div class="card-header">
+          <h2>Formatted Resume</h2>
+          <button id="copy-btn" type="button" class="secondary">Copy</button>
+        </div>
+        <pre id="formatted-output"></pre>
+      </div>
+
+      <div class="card">
+        <h2>Keywords Incorporated</h2>
+        <ul id="keywords-in" class="chip-list"></ul>
+
+        <h2>Keywords Skipped <span class="subtle">(not in your experience)</span></h2>
+        <ul id="keywords-out" class="chip-list muted"></ul>
+
+        <h2>Needs Your Input</h2>
+        <ul id="needs-input" class="suggestions"></ul>
+
+        <h2>Changes Made</h2>
+        <div id="changes-list" class="changes"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
