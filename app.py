@@ -13,7 +13,15 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-key")
 
-client = anthropic.Anthropic()
+_client: Optional[anthropic.Anthropic] = None
+
+
+def get_client() -> anthropic.Anthropic:
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic()
+    return _client
+
 
 MODEL = "claude-opus-4-7"
 
@@ -160,7 +168,7 @@ def format_resume():
     )
 
     try:
-        response = client.messages.parse(
+        response = get_client().messages.parse(
             model=MODEL,
             max_tokens=16000,
             thinking={"type": "adaptive"},
