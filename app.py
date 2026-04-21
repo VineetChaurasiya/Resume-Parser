@@ -2,7 +2,9 @@ import io
 import os
 from typing import List, Optional
 
-import anthropic
+import google.genai as genai
+from google.genai import errors as genai_errors
+from google.genai import types
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 from pydantic import BaseModel, Field
@@ -13,17 +15,17 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-key")
 
-_client: Optional[anthropic.Anthropic] = None
+_client: Optional[genai.Client] = None
 
 
-def get_client() -> anthropic.Anthropic:
+def get_client() -> genai.Client:
     global _client
     if _client is None:
-        _client = anthropic.Anthropic()
+        _client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
     return _client
 
 
-MODEL = "claude-opus-4-7"
+MODEL = "gemini-2.5-flash"
 
 
 SYSTEM_PROMPT = """You are an expert resume editor specializing in Applicant Tracking System (ATS) optimization.
@@ -168,31 +170,35 @@ def format_resume():
     )
 
     try:
-        response = get_client().messages.parse(
+        response = get_client().models.generate_content(
             model=MODEL,
-            max_tokens=16000,
-            thinking={"type": "adaptive"},
-            system=[
-                {
-                    "type": "text",
-                    "text": SYSTEM_PROMPT,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            messages=[{"role": "user", "content": user_message}],
-            output_format=FormatResult,
+            config=types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                response_schema=FormatResult,
+                max_output_tokens=8000,
+            ),
+            contents=user_message,
         )
-    except anthropic.BadRequestError as e:
-        return jsonify({"error": f"Request rejected: {e.message}"}), 400
-    except anthropic.AuthenticationError:
-        return jsonify({"error": "Claude API key is missing or invalid. Check ANTHROPIC_API_KEY."}), 500
-    except anthropic.RateLimitError:
-        return jsonify({"error": "Rate limited by the Claude API. Please retry in a moment."}), 429
-    except anthropic.APIStatusError as e:
-        return jsonify({"error": f"Claude API error ({e.status_code}): {e.message}"}), 502
+    except genai_errors.ClientError as e:
+        code = getattr(e, "code", 0)
+        msg = getattr(e, "message", str(e))
+        if code == 429:
+            return jsonify({"error": "Rate limited by Gemini API. Please wait a moment and retry."}), 429
+        if code in (401, 403):
+            return jsonify({"error": "Google API key is missing or invalid. Check GOOGLE_API_KEY."}), 500
+        return jsonify({"error": f"Request rejected: {msg}"}), 400
+    except genai_errors.ServerError:
+        return jsonify({"error": "Gemini API server error. Please try again."}), 502
+    except Exception as e:
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
-    result: FormatResult = response.parsed_output
-    if result is None:
+    if not response.text:
+        return jsonify({"error": "Model returned an empty response. Try again."}), 502
+
+    try:
+        result = FormatResult.model_validate_json(response.text)
+    except Exception:
         return jsonify({"error": "Model did not return a valid structured response. Try again."}), 502
 
     return jsonify(result.model_dump())
