@@ -188,8 +188,10 @@ def format_resume():
         if code in (401, 403):
             return jsonify({"error": "Google API key is missing or invalid. Check GOOGLE_API_KEY."}), 500
         return jsonify({"error": f"Request rejected: {msg}"}), 400
-    except genai_errors.ServerError:
-        return jsonify({"error": "Gemini API server error. Please try again."}), 502
+    except genai_errors.ServerError as e:
+        code = getattr(e, "code", 0)
+        msg = getattr(e, "message", str(e))
+        return jsonify({"error": f"Gemini server error ({code}): {msg}"}), 502
     except Exception as e:
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
